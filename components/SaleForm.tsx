@@ -32,9 +32,10 @@ interface SaleFormProps {
   sale?: Sale;
   onSubmit: (data: SaleFormData) => Promise<void>;
   onCancel?: () => void;
+  isAdmin?: boolean;
 }
 
-export function SaleForm({ sale, onSubmit, onCancel }: SaleFormProps) {
+export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     productService: sale?.productService ?? "",
@@ -145,12 +146,14 @@ export function SaleForm({ sale, onSubmit, onCancel }: SaleFormProps) {
               <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Custo</p>
               <p className="font-semibold tabular-nums text-right">{formatCurrency(amounts.cost)}</p>
             </div>
-            <div className="flex items-center justify-between gap-4 border-t border-border pt-2.5">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Lucro</p>
-              <p className={`font-semibold tabular-nums text-right ${amounts.profit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {formatCurrency(amounts.profit)}
-              </p>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center justify-between gap-4 border-t border-border pt-2.5">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Lucro</p>
+                <p className={`font-semibold tabular-nums text-right ${amounts.profit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                  {formatCurrency(amounts.profit)}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

@@ -315,7 +315,7 @@ export default function Dashboard() {
 
       <Sheet open={showForm} onOpenChange={(open) => !open && setShowForm(false)}>
         <SheetContent title="Nova Venda">
-          <SaleForm onSubmit={handleAddSale} onCancel={() => setShowForm(false)} />
+          <SaleForm onSubmit={handleAddSale} onCancel={() => setShowForm(false)} isAdmin={isAdmin} />
         </SheetContent>
       </Sheet>
 
@@ -326,6 +326,7 @@ export default function Dashboard() {
               sale={editingSale}
               onSubmit={handleEditSale}
               onCancel={() => setEditingSale(null)}
+              isAdmin={isAdmin}
             />
           )}
         </SheetContent>
