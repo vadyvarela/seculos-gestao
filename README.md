@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Seculos Eletronicos
 
-## Getting Started
+Sistema de gestão de loja de eletrónicos (vendas, custos, lucros, despesas).
 
-First, run the development server:
+## Stack
+
+- Next.js 16 + React 19
+- Drizzle ORM + SQLite (local) / Turso
+- shadcn/ui + Tailwind 4
+- Auth JWT (admin / user)
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+pnpm migrate
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Login inicial:
+- **utilizador:** `admin`
+- **senha:** `admin123`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variáveis (`.env.local`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+TURSO_DATABASE_URL=file:local.db
+TURSO_AUTH_TOKEN=local-dev-token
+SESSION_SECRET=altere-em-producao
+```
 
-## Learn More
+Para Turso em produção, use a URL remota e o token reais.
 
-To learn more about Next.js, take a look at the following resources:
+## Funcionalidades
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Vendas** — produto/serviço, qtd, preço, total, custo, lucro (+ cliente, categoria, pagamento)
+- **Despesas** — custos operacionais (admin)
+- **Estatísticas** — faturamento, margem, lucro líquido (admin)
+- **Utilizadores** — gestão de contas (admin)
+- **Conta** — alterar senha
