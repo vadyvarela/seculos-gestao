@@ -25,8 +25,12 @@ function withAmounts(data: SaleInput) {
 }
 
 export async function createSale(data: SaleInput): Promise<Sale> {
-  await requireAuth();
-  const [sale] = await db.insert(sales).values(withAmounts(data)).returning();
+  const user = await requireAuth();
+  const payload =
+    user.role === "admin"
+      ? data
+      : { ...data, unitCost: 0 };
+  const [sale] = await db.insert(sales).values(withAmounts(payload)).returning();
   return sale;
 }
 
@@ -54,21 +58,41 @@ export async function searchSales(query: string): Promise<Sale[]> {
 }
 
 export async function updateSale(id: number, data: Partial<SaleInput>): Promise<Sale> {
-  await requireAuth();
+  const user = await requireAuth();
 
   const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
   if (!existing) throw new Error("Venda não encontrada.");
 
+  const { unitCost: _unitCost, ...rest } = data;
+  const safeData = user.role === "admin" ? data : rest;
+
   const merged = {
-    quantity: data.quantity ?? existing.quantity,
-    unitPrice: data.unitPrice ?? existing.unitPrice,
-    unitCost: data.unitCost ?? existing.unitCost,
+    quantity: safeData.quantity ?? existing.quantity,
+    unitPrice: safeData.unitPrice ?? existing.unitPrice,
+    unitCost: user.role === "admin" ? (safeData.unitCost ?? existing.unitCost) : existing.unitCost,
   };
   const amounts = computeSaleAmounts(merged.quantity, merged.unitPrice, merged.unitCost);
 
   const [sale] = await db
     .update(sales)
-    .set({ ...data, ...amounts })
+    .set({ ...safeData, ...amounts })
+    .where(eq(sales.id, id))
+    .returning();
+  return sale;
+}
+
+export async function updateSaleCost(id: number, unitCost: number): Promise<Sale> {
+  await requireAdmin();
+
+  const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
+  if (!existing) throw new Error("Venda não encontrada.");
+
+  const cost = Math.max(0, Number(unitCost) || 0);
+  const amounts = computeSaleAmounts(existing.quantity, existing.unitPrice, cost);
+
+  const [sale] = await db
+    .update(sales)
+    .set({ unitCost: cost, ...amounts })
     .where(eq(sales.id, id))
     .returning();
   return sale;

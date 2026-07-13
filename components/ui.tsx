@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Trash2, BadgeDollarSign, Phone } from "lucide-react";
+import { Pencil, Trash2, BadgeDollarSign, Phone, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DraggableScroll } from "@/components/DraggableScroll";
 
@@ -86,12 +86,16 @@ export function SalesTable({
   onDelete,
   onMarkPaid,
   onRowClick,
+  onApplyCost,
+  isAdmin = false,
 }: {
   sales: Sale[];
   onEdit?: (sale: Sale) => void;
   onDelete?: (id: number) => void;
   onMarkPaid?: (id: number) => void;
   onRowClick?: (sale: Sale) => void;
+  onApplyCost?: (sale: Sale) => void;
+  isAdmin?: boolean;
 }) {
   const dash = <span className="text-muted-foreground/30">—</span>;
 
@@ -110,8 +114,12 @@ export function SalesTable({
             <TableHead className="w-14 text-xs text-muted-foreground uppercase tracking-wider">Qtd</TableHead>
             <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Preço</TableHead>
             <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Total</TableHead>
-            <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Custo</TableHead>
-            <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Lucro</TableHead>
+            {isAdmin && (
+              <>
+                <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Custo</TableHead>
+                <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Lucro</TableHead>
+              </>
+            )}
             <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Cliente</TableHead>
             <TableHead className="text-xs text-muted-foreground uppercase tracking-wider">Pagto</TableHead>
             <TableHead className="sticky right-0 bg-card text-xs text-muted-foreground uppercase tracking-wider shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.2)]">Ações</TableHead>
@@ -129,10 +137,14 @@ export function SalesTable({
               <TableCell className="text-muted-foreground">{sale.quantity}</TableCell>
               <TableCell className="text-muted-foreground tabular-nums">{formatCurrency(sale.unitPrice)}</TableCell>
               <TableCell className="font-semibold text-foreground tabular-nums">{formatCurrency(sale.total)}</TableCell>
-              <TableCell className="text-muted-foreground tabular-nums">{formatCurrency(sale.cost)}</TableCell>
-              <TableCell className={cn("font-semibold tabular-nums", sale.profit >= 0 ? "text-emerald-500" : "text-rose-500")}>
-                {formatCurrency(sale.profit)}
-              </TableCell>
+              {isAdmin && (
+                <>
+                  <TableCell className="text-muted-foreground tabular-nums">{formatCurrency(sale.cost)}</TableCell>
+                  <TableCell className={cn("font-semibold tabular-nums", sale.profit >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                    {formatCurrency(sale.profit)}
+                  </TableCell>
+                </>
+              )}
               <TableCell className="text-muted-foreground">
                 {sale.clientName ? (
                   <span className="inline-flex flex-col gap-0.5">
@@ -154,6 +166,17 @@ export function SalesTable({
               <TableCell className="sticky right-0 bg-card shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.2)]" onClick={(e) => e.stopPropagation()}>
                 <TooltipProvider delay={200}>
                   <div className="flex gap-0.5">
+                    {onApplyCost && isAdmin && (
+                      <Tooltip>
+                        <TooltipTrigger render={
+                          <Button variant="ghost" size="icon-xs" onClick={() => onApplyCost(sale)} aria-label="Aplicar custo"
+                            className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10">
+                            <Coins />
+                          </Button>
+                        } />
+                        <TooltipContent>Aplicar custo</TooltipContent>
+                      </Tooltip>
+                    )}
                     {onMarkPaid && sale.paymentStatus !== "pago" && (
                       <Tooltip>
                         <TooltipTrigger render={
@@ -201,11 +224,15 @@ export function SalesTable({
               <td className="p-2 text-xs font-semibold text-foreground">{totalQty}</td>
               <td className="p-2" />
               <td className="p-2 text-xs font-semibold text-foreground tabular-nums">{formatCurrency(totalRevenue)}</td>
-              <td className="p-2 text-xs font-semibold text-foreground tabular-nums">{formatCurrency(totalCost)}</td>
-              <td className={cn("p-2 text-xs font-semibold tabular-nums", totalProfit >= 0 ? "text-emerald-500" : "text-rose-500")}>
-                {formatCurrency(totalProfit)}
-              </td>
-              <td colSpan={3} />
+              {isAdmin && (
+                <>
+                  <td className="p-2 text-xs font-semibold text-foreground tabular-nums">{formatCurrency(totalCost)}</td>
+                  <td className={cn("p-2 text-xs font-semibold tabular-nums", totalProfit >= 0 ? "text-emerald-500" : "text-rose-500")}>
+                    {formatCurrency(totalProfit)}
+                  </td>
+                </>
+              )}
+              <td colSpan={isAdmin ? 3 : 3} />
             </tr>
           </tfoot>
         )}

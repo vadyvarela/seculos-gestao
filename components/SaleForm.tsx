@@ -95,7 +95,7 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="quantity">Qtd *</Label>
               <Input
@@ -122,19 +122,6 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
                 placeholder="0"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="unitCost">Custo</Label>
-              <Input
-                id="unitCost"
-                name="unitCost"
-                type="number"
-                value={formData.unitCost}
-                onChange={handleChange}
-                step="0.01"
-                min="0"
-                placeholder="0"
-              />
-            </div>
           </div>
 
           <div className="rounded-md border border-border bg-muted/40 px-4 py-3 space-y-2.5 text-sm">
@@ -142,17 +129,19 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
               <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Total</p>
               <p className="font-semibold tabular-nums text-right">{formatCurrency(amounts.total)}</p>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Custo</p>
-              <p className="font-semibold tabular-nums text-right">{formatCurrency(amounts.cost)}</p>
-            </div>
             {isAdmin && (
-              <div className="flex items-center justify-between gap-4 border-t border-border pt-2.5">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Lucro</p>
-                <p className={`font-semibold tabular-nums text-right ${amounts.profit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                  {formatCurrency(amounts.profit)}
-                </p>
-              </div>
+              <>
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Custo</p>
+                  <p className="font-semibold tabular-nums text-right">{formatCurrency(amounts.cost)}</p>
+                </div>
+                <div className="flex items-center justify-between gap-4 border-t border-border pt-2.5">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">Lucro</p>
+                  <p className={`font-semibold tabular-nums text-right ${amounts.profit >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {formatCurrency(amounts.profit)}
+                  </p>
+                </div>
+              </>
             )}
           </div>
 

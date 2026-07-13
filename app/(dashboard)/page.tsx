@@ -7,6 +7,7 @@ import {
   getSalesByMonth,
   createSale,
   updateSale,
+  updateSaleCost,
   deleteSale,
   getNextSaleNumber,
 } from "@/app/api/actions";
@@ -23,6 +24,7 @@ import { StatCard, SalesTable } from "@/components/ui";
 import { SaleForm, type SaleFormData } from "@/components/SaleForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
@@ -73,6 +75,9 @@ export default function Dashboard() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  const [costSale, setCostSale] = useState<Sale | null>(null);
+  const [costValue, setCostValue] = useState("");
+  const [savingCost, setSavingCost] = useState(false);
 
   useEffect(() => {
     getSessionUser().then((u) => setIsAdmin(u.role === "admin")).catch(() => {});
@@ -199,6 +204,28 @@ export default function Dashboard() {
     }
   };
 
+  const openCostDialog = (sale: Sale) => {
+    setCostSale(sale);
+    setCostValue(String(sale.unitCost || ""));
+  };
+
+  const handleApplyCost = async () => {
+    if (!costSale) return;
+    setSavingCost(true);
+    const tid = toast.loading("A guardar custo...");
+    try {
+      await updateSaleCost(costSale.id, parseFloat(costValue) || 0);
+      setCostSale(null);
+      setCostValue("");
+      await reload();
+      toast.success("Custo aplicado!", { id: tid });
+    } catch {
+      toast.error("Erro ao aplicar custo.", { id: tid });
+    } finally {
+      setSavingCost(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Dialog open={detailSale !== null} onOpenChange={(open) => !open && setDetailSale(null)}>
@@ -214,10 +241,18 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Total</p>
               <p className="font-medium">{detailSale ? formatCurrency(detailSale.total) : "—"}</p>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Lucro</p>
-              <p className="font-medium">{detailSale ? formatCurrency(detailSale.profit) : "—"}</p>
-            </div>
+            {isAdmin && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Custo</p>
+                  <p className="font-medium">{detailSale ? formatCurrency(detailSale.cost) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Lucro</p>
+                  <p className="font-medium">{detailSale ? formatCurrency(detailSale.profit) : "—"}</p>
+                </div>
+              </>
+            )}
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Método</p>
               <p className="font-medium">{detailSale ? paymentMethodLabel(detailSale.paymentMethod) : "—"}</p>
@@ -245,6 +280,56 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={costSale !== null} onOpenChange={(open) => !open && setCostSale(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aplicar custo</DialogTitle>
+            <DialogDescription>
+              Venda #{costSale?.number} — {costSale?.productService}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Total</p>
+                <p className="font-medium">{costSale ? formatCurrency(costSale.total) : "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">Qtd</p>
+                <p className="font-medium">{costSale?.quantity ?? "—"}</p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="unitCost">Custo unitário</Label>
+              <Input
+                id="unitCost"
+                type="number"
+                step="0.01"
+                min="0"
+                value={costValue}
+                onChange={(e) => setCostValue(e.target.value)}
+                placeholder="0"
+                autoFocus
+              />
+              {costSale && (
+                <p className="text-xs text-muted-foreground">
+                  Custo total: {formatCurrency((parseFloat(costValue) || 0) * costSale.quantity)} · Lucro:{" "}
+                  <span className={(costSale.total - (parseFloat(costValue) || 0) * costSale.quantity) >= 0 ? "text-emerald-500" : "text-rose-500"}>
+                    {formatCurrency(costSale.total - (parseFloat(costValue) || 0) * costSale.quantity)}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
+            <Button onClick={handleApplyCost} disabled={savingCost}>
+              {savingCost ? "A guardar..." : "Guardar custo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
@@ -265,7 +350,9 @@ export default function Dashboard() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold">Vendas — {getMonthName(selectedMonth)}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Produtos, serviços, custos e lucros</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isAdmin ? "Produtos, serviços, custos e lucros" : "Produtos e serviços vendidos"}
+          </p>
         </div>
         <Button
           onClick={() => {
@@ -304,12 +391,16 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className={`grid grid-cols-2 gap-3 ${isAdmin ? "sm:grid-cols-3 xl:grid-cols-6" : "sm:grid-cols-2 xl:grid-cols-4"}`}>
         <StatCard label="Vendas" value={stats?.totalSales ?? 0} color="blue" />
         <StatCard label="Unidades" value={stats?.totalQuantity ?? 0} color="orange" />
         <StatCard label="Faturamento" value={formatCurrency(stats?.totalRevenue ?? 0)} color="green" />
-        <StatCard label="Custo" value={formatCurrency(stats?.totalCost ?? 0)} color="yellow" />
-        <StatCard label="Lucro" value={formatCurrency(stats?.totalProfit ?? 0)} color="purple" />
+        {isAdmin && (
+          <>
+            <StatCard label="Custo" value={formatCurrency(stats?.totalCost ?? 0)} color="yellow" />
+            <StatCard label="Lucro" value={formatCurrency(stats?.totalProfit ?? 0)} color="purple" />
+          </>
+        )}
         <StatCard label="Pagto. pendente" value={formatCurrency(stats?.pendingPaymentValue ?? 0)} color="red" />
       </div>
 
@@ -395,6 +486,7 @@ export default function Dashboard() {
           ) : (
             <SalesTable
               sales={filteredSales}
+              isAdmin={isAdmin}
               onRowClick={setDetailSale}
               onEdit={(sale) => {
                 setEditingSale(sale);
@@ -402,6 +494,7 @@ export default function Dashboard() {
               }}
               onDelete={isAdmin ? (id) => setDeleteId(id) : undefined}
               onMarkPaid={handleMarkPaid}
+              onApplyCost={isAdmin ? openCostDialog : undefined}
             />
           )}
         </CardContent>
