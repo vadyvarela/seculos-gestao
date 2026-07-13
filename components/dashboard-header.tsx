@@ -1,18 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LineChart, LogOut, KeyRound, Menu } from "lucide-react";
+import { LineChart, LogOut, KeyRound, Menu, Store } from "lucide-react";
 import { logout } from "@/app/login/actions";
+import { switchStore } from "@/app/api/store-actions";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+type StoreOption = { id: number; name: string };
 
 type Props = {
   username?: string;
-  isAdmin: boolean;
+  isStoreAdmin: boolean;
+  isOwner: boolean;
+  storeName: string;
+  storeId: number;
+  stores: StoreOption[];
 };
 
 function NavLink({
@@ -45,17 +60,42 @@ function NavLink({
   );
 }
 
-export function DashboardHeader({ username, isAdmin }: Props) {
+export function DashboardHeader({
+  username,
+  isStoreAdmin,
+  isOwner,
+  storeName,
+  storeId,
+  stores,
+}: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
   const pathname = usePathname();
+  const router = useRouter();
 
   const closeMenu = () => setMenuOpen(false);
 
   const navItems = [
     { href: "/", label: "Vendas" },
-    ...(isAdmin ? [{ href: "/despesas", label: "Despesas" }] : []),
-    ...(isAdmin ? [{ href: "/utilizadores", label: "Utilizadores" }] : []),
+    ...(isStoreAdmin ? [{ href: "/despesas", label: "Despesas" }] : []),
+    ...(isStoreAdmin ? [{ href: "/utilizadores", label: "Utilizadores" }] : []),
+    ...(isOwner ? [{ href: "/lojas", label: "Lojas" }] : []),
   ];
+
+  const handleSwitch = (value: string | null) => {
+    if (!value) return;
+    const id = Number(value);
+    if (id === storeId) return;
+    startTransition(async () => {
+      try {
+        await switchStore(id);
+        router.refresh();
+        toast.success("Loja alterada.");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao mudar de loja.");
+      }
+    });
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
@@ -71,11 +111,38 @@ export function DashboardHeader({ username, isAdmin }: Props) {
             <Menu className="size-4" />
           </Button>
 
-          <Link href="/" className="flex items-center gap-2 min-w-0 shrink">
-            <span className="text-sm font-semibold tracking-tight truncate">Seculos Eletronicos</span>
-          </Link>
+          <div className="flex flex-col min-w-0 shrink">
+            <Link href="/" className="text-sm font-semibold tracking-tight truncate leading-tight">
+              {storeName}
+            </Link>
+            {isOwner && stores.length > 1 && (
+              <span className="text-[10px] text-muted-foreground leading-none hidden sm:block">
+                Dono · {stores.length} lojas
+              </span>
+            )}
+          </div>
 
-          <nav className="hidden md:flex items-center gap-0.5 ml-2">
+          {isOwner && stores.length > 0 ? (
+            <Select
+              value={String(storeId)}
+              onValueChange={handleSwitch}
+              disabled={pending}
+            >
+              <SelectTrigger className="hidden sm:flex h-8 w-[min(100%,11rem)] text-xs">
+                <Store className="size-3.5 shrink-0 opacity-60" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {stores.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
+          <nav className="hidden md:flex items-center gap-0.5 ml-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
@@ -94,7 +161,7 @@ export function DashboardHeader({ username, isAdmin }: Props) {
             </span>
           )}
 
-          {isAdmin && (
+          {isStoreAdmin && (
             <Link
               href="/estatisticas"
               className={cn(
@@ -142,6 +209,31 @@ export function DashboardHeader({ username, isAdmin }: Props) {
             <p className="text-xs text-muted-foreground mb-3 px-1 truncate">{username}</p>
           )}
 
+          {isOwner && stores.length > 0 && (
+            <div className="mb-3 px-1">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Loja</p>
+              <Select value={String(storeId)} onValueChange={handleSwitch} disabled={pending}>
+                <SelectTrigger className="h-9 w-full text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {!isOwner && (
+            <p className="text-xs text-muted-foreground mb-3 px-1 flex items-center gap-1.5">
+              <Store className="size-3.5" />
+              {storeName}
+            </p>
+          )}
+
           <nav className="flex flex-col gap-0.5">
             {navItems.map((item) => (
               <NavLink
@@ -153,7 +245,7 @@ export function DashboardHeader({ username, isAdmin }: Props) {
                 className="py-2.5"
               />
             ))}
-            {isAdmin && (
+            {isStoreAdmin && (
               <NavLink
                 href="/estatisticas"
                 label="Estatísticas"

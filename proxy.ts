@@ -4,6 +4,22 @@ import { decrypt } from "@/lib/session";
 
 const publicRoutes = ["/login"];
 const adminRoutes = ["/estatisticas", "/despesas", "/utilizadores"];
+const ownerRoutes = ["/lojas"];
+
+function isStoreAdminSession(session: {
+  globalRole?: string;
+  storeRole?: string | null;
+  role?: string;
+}) {
+  if (session.globalRole === "owner" || session.role === "owner" || session.role === "admin") {
+    return true;
+  }
+  return session.storeRole === "admin";
+}
+
+function isOwnerSession(session: { globalRole?: string; role?: string }) {
+  return session.globalRole === "owner" || session.role === "owner" || session.role === "admin";
+}
 
 export default async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
@@ -20,7 +36,13 @@ export default async function proxy(req: NextRequest) {
   }
 
   if (session?.userId && adminRoutes.some((r) => path === r || path.startsWith(`${r}/`))) {
-    if (session.role !== "admin") {
+    if (!isStoreAdminSession(session)) {
+      return NextResponse.redirect(new URL("/", req.nextUrl));
+    }
+  }
+
+  if (session?.userId && ownerRoutes.some((r) => path === r || path.startsWith(`${r}/`))) {
+    if (!isOwnerSession(session)) {
       return NextResponse.redirect(new URL("/", req.nextUrl));
     }
   }

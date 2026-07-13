@@ -8,16 +8,33 @@ function getEncodedKey() {
   return new TextEncoder().encode(secret);
 }
 
+export type GlobalRole = "owner" | "member";
+export type StoreRole = "admin" | "user";
+
 export type SessionPayload = {
   userId: number;
-  role: string;
+  globalRole: GlobalRole;
+  storeId: number;
+  storeRole: StoreRole | null;
   expiresAt: Date;
+};
+
+export type DecryptedSession = {
+  userId: number;
+  globalRole?: GlobalRole;
+  /** @deprecated use globalRole / storeRole */
+  role?: string;
+  storeId?: number;
+  storeRole?: StoreRole | null;
+  expiresAt: string;
 };
 
 export async function encrypt(payload: SessionPayload) {
   return new SignJWT({
     userId: payload.userId,
-    role: payload.role,
+    globalRole: payload.globalRole,
+    storeId: payload.storeId,
+    storeRole: payload.storeRole,
     expiresAt: payload.expiresAt.toISOString(),
   })
     .setProtectedHeader({ alg: "HS256" })
@@ -31,15 +48,20 @@ export async function decrypt(session: string | undefined = "") {
     const { payload } = await jwtVerify(session, getEncodedKey(), {
       algorithms: ["HS256"],
     });
-    return payload as { userId: number; role?: string; expiresAt: string };
+    return payload as unknown as DecryptedSession;
   } catch {
     return null;
   }
 }
 
-export async function createSession(userId: number, role: string) {
+export async function createSession(
+  userId: number,
+  globalRole: GlobalRole,
+  storeId: number,
+  storeRole: StoreRole | null
+) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const session = await encrypt({ userId, role, expiresAt });
+  const session = await encrypt({ userId, globalRole, storeId, storeRole, expiresAt });
   const cookieStore = await cookies();
 
   cookieStore.set("session", session, {

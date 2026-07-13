@@ -80,7 +80,9 @@ export default function Dashboard() {
   const [savingCost, setSavingCost] = useState(false);
 
   useEffect(() => {
-    getSessionUser().then((u) => setIsAdmin(u.role === "admin")).catch(() => {});
+    getSessionUser()
+      .then((u) => setIsAdmin(u.isStoreAdmin))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

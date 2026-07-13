@@ -91,7 +91,7 @@ export default function UtilizadoresPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">Utilizadores</h1>
-          <p className="text-sm text-muted-foreground">Gestão de contas e permissões</p>
+          <p className="text-sm text-muted-foreground">Membros desta loja — cada utilizador pertence a uma loja só</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus className="size-4" />
@@ -152,7 +152,9 @@ export default function UtilizadoresPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Novo utilizador</DialogTitle>
-            <DialogDescription>Criar conta com permissão admin ou utilizador normal.</DialogDescription>
+            <DialogDescription>
+              O admin desta loja gere custos e despesas; o utilizador normal só regista vendas.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">

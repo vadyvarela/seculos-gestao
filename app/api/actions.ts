@@ -11,47 +11,63 @@ import {
   computeSaleAmounts,
 } from "@/lib/schema";
 import { eq, desc, and, like, or } from "drizzle-orm";
-import { requireAuth, requireAdmin } from "@/lib/auth";
+import { requireAuth, requireStoreAdmin } from "@/lib/auth";
 
-type SaleInput = Omit<NewSale, "total" | "cost" | "profit" | "unitPrice" | "unitCost" | "quantity"> & {
+type SaleInput = Omit<
+  NewSale,
+  "total" | "cost" | "profit" | "unitPrice" | "unitCost" | "quantity" | "storeId"
+> & {
   quantity: number;
   unitPrice: number;
   unitCost: number;
 };
 
-function withAmounts(data: SaleInput) {
+function withAmounts(data: SaleInput & { storeId: number }) {
   const amounts = computeSaleAmounts(data.quantity, data.unitPrice, data.unitCost);
   return { ...data, ...amounts };
 }
 
+async function assertSaleInStore(id: number, storeId: number) {
+  const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
+  if (!existing || existing.storeId !== storeId) throw new Error("Venda não encontrada.");
+  return existing;
+}
+
+async function assertExpenseInStore(id: number, storeId: number) {
+  const [existing] = await db.select().from(expenses).where(eq(expenses.id, id)).limit(1);
+  if (!existing || existing.storeId !== storeId) throw new Error("Despesa não encontrada.");
+  return existing;
+}
+
 export async function createSale(data: SaleInput): Promise<Sale> {
   const user = await requireAuth();
-  const payload =
-    user.role === "admin"
-      ? data
-      : { ...data, unitCost: 0 };
+  const payload = {
+    ...data,
+    storeId: user.storeId,
+    unitCost: user.isStoreAdmin ? data.unitCost : 0,
+  };
   const [sale] = await db.insert(sales).values(withAmounts(payload)).returning();
   return sale;
 }
 
 export async function getSalesByMonth(month: string, year: number): Promise<Sale[]> {
-  await requireAuth();
+  const user = await requireAuth();
   return db
     .select()
     .from(sales)
-    .where(and(eq(sales.month, month), eq(sales.year, year)))
+    .where(and(eq(sales.storeId, user.storeId), eq(sales.month, month), eq(sales.year, year)))
     .orderBy(desc(sales.number));
 }
 
 export async function searchSales(query: string): Promise<Sale[]> {
-  await requireAuth();
+  const user = await requireAuth();
   return db
     .select()
     .from(sales)
     .where(
-      or(
-        like(sales.productService, `%${query}%`),
-        like(sales.clientName, `%${query}%`)
+      and(
+        eq(sales.storeId, user.storeId),
+        or(like(sales.productService, `%${query}%`), like(sales.clientName, `%${query}%`))
       )
     )
     .orderBy(desc(sales.createdAt));
@@ -59,48 +75,45 @@ export async function searchSales(query: string): Promise<Sale[]> {
 
 export async function updateSale(id: number, data: Partial<SaleInput>): Promise<Sale> {
   const user = await requireAuth();
+  const existing = await assertSaleInStore(id, user.storeId);
 
-  const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
-  if (!existing) throw new Error("Venda não encontrada.");
-
-  const { unitCost: _unitCost, ...rest } = data;
-  const safeData = user.role === "admin" ? data : rest;
+  const { unitCost: _ignored, ...rest } = data;
+  const safeData = user.isStoreAdmin ? data : rest;
 
   const merged = {
     quantity: safeData.quantity ?? existing.quantity,
     unitPrice: safeData.unitPrice ?? existing.unitPrice,
-    unitCost: user.role === "admin" ? (safeData.unitCost ?? existing.unitCost) : existing.unitCost,
+    unitCost: user.isStoreAdmin ? (data.unitCost ?? existing.unitCost) : existing.unitCost,
   };
   const amounts = computeSaleAmounts(merged.quantity, merged.unitPrice, merged.unitCost);
 
   const [sale] = await db
     .update(sales)
     .set({ ...safeData, ...amounts })
-    .where(eq(sales.id, id))
+    .where(and(eq(sales.id, id), eq(sales.storeId, user.storeId)))
     .returning();
   return sale;
 }
 
 export async function updateSaleCost(id: number, unitCost: number): Promise<Sale> {
-  await requireAdmin();
-
-  const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
-  if (!existing) throw new Error("Venda não encontrada.");
+  const user = await requireStoreAdmin();
+  const existing = await assertSaleInStore(id, user.storeId);
 
   const cost = Math.max(0, Number(unitCost) || 0);
   const amounts = computeSaleAmounts(existing.quantity, existing.unitPrice, cost);
 
   const [sale] = await db
     .update(sales)
-    .set({ unitCost: cost, ...amounts })
-    .where(eq(sales.id, id))
+    .set(amounts)
+    .where(and(eq(sales.id, id), eq(sales.storeId, user.storeId)))
     .returning();
   return sale;
 }
 
 export async function deleteSale(id: number): Promise<void> {
-  await requireAdmin();
-  await db.delete(sales).where(eq(sales.id, id));
+  const user = await requireStoreAdmin();
+  await assertSaleInStore(id, user.storeId);
+  await db.delete(sales).where(and(eq(sales.id, id), eq(sales.storeId, user.storeId)));
 }
 
 export async function getMonthlyStats(month: string, year: number) {
@@ -130,8 +143,11 @@ export async function getMonthlyStats(month: string, year: number) {
 }
 
 export async function getAllMonths(): Promise<{ month: string; year: number }[]> {
-  await requireAuth();
-  const result = await db.selectDistinct({ month: sales.month, year: sales.year }).from(sales);
+  const user = await requireAuth();
+  const result = await db
+    .selectDistinct({ month: sales.month, year: sales.year })
+    .from(sales)
+    .where(eq(sales.storeId, user.storeId));
   return result.filter((r) => r.month) as { month: string; year: number }[];
 }
 
@@ -141,22 +157,39 @@ const MONTH_ORDER = [
 ];
 
 export async function getAllStats() {
-  await requireAdmin();
-  const all = await db.select().from(sales);
-  const allExpenses = await db.select().from(expenses);
+  const user = await requireStoreAdmin();
+  const all = await db.select().from(sales).where(eq(sales.storeId, user.storeId));
+  const allExpenses = await db.select().from(expenses).where(eq(expenses.storeId, user.storeId));
 
-  const byMonth: Record<string, {
-    month: string; year: number; revenue: number; cost: number; profit: number;
-    sales: number; paid: number; pendingPayment: number; quantity: number;
-  }> = {};
+  const byMonth: Record<
+    string,
+    {
+      month: string;
+      year: number;
+      revenue: number;
+      cost: number;
+      profit: number;
+      sales: number;
+      paid: number;
+      pendingPayment: number;
+      quantity: number;
+    }
+  > = {};
 
   for (const s of all) {
     if (!s.month) continue;
     const key = `${s.year ?? 2026}-${s.month}`;
     if (!byMonth[key]) {
       byMonth[key] = {
-        month: s.month, year: s.year ?? 2026, revenue: 0, cost: 0, profit: 0,
-        sales: 0, paid: 0, pendingPayment: 0, quantity: 0,
+        month: s.month,
+        year: s.year ?? 2026,
+        revenue: 0,
+        cost: 0,
+        profit: 0,
+        sales: 0,
+        paid: 0,
+        pendingPayment: 0,
+        quantity: 0,
       };
     }
     const m = byMonth[key];
@@ -186,7 +219,8 @@ export async function getAllStats() {
   const totalExpenses = allExpenses.reduce((sum, e) => sum + (Number(e.value) || 0), 0);
   const netProfit = totalProfit - totalExpenses;
 
-  const productMap: Record<string, { name: string; revenue: number; profit: number; sales: number }> = {};
+  const productMap: Record<string, { name: string; revenue: number; profit: number; sales: number }> =
+    {};
   for (const s of all) {
     if (!s.productService) continue;
     const k = s.productService.trim().toUpperCase();
@@ -215,33 +249,51 @@ export async function getAllStats() {
 }
 
 export async function getExpenses(): Promise<Expense[]> {
-  await requireAdmin();
-  return db.select().from(expenses).orderBy(desc(expenses.date), desc(expenses.createdAt));
+  const user = await requireStoreAdmin();
+  return db
+    .select()
+    .from(expenses)
+    .where(eq(expenses.storeId, user.storeId))
+    .orderBy(desc(expenses.date), desc(expenses.createdAt));
 }
 
-export async function createExpense(data: NewExpense): Promise<Expense> {
-  await requireAdmin();
-  const [expense] = await db.insert(expenses).values(data).returning();
+export async function createExpense(
+  data: Omit<NewExpense, "storeId">
+): Promise<Expense> {
+  const user = await requireStoreAdmin();
+  const [expense] = await db
+    .insert(expenses)
+    .values({ ...data, storeId: user.storeId })
+    .returning();
   return expense;
 }
 
-export async function updateExpense(id: number, data: Partial<Expense>): Promise<Expense> {
-  await requireAdmin();
-  const [expense] = await db.update(expenses).set(data).where(eq(expenses.id, id)).returning();
+export async function updateExpense(
+  id: number,
+  data: Partial<Omit<Expense, "id" | "storeId" | "createdAt">>
+): Promise<Expense> {
+  const user = await requireStoreAdmin();
+  await assertExpenseInStore(id, user.storeId);
+  const [expense] = await db
+    .update(expenses)
+    .set(data)
+    .where(and(eq(expenses.id, id), eq(expenses.storeId, user.storeId)))
+    .returning();
   return expense;
 }
 
 export async function deleteExpense(id: number): Promise<void> {
-  await requireAdmin();
-  await db.delete(expenses).where(eq(expenses.id, id));
+  const user = await requireStoreAdmin();
+  await assertExpenseInStore(id, user.storeId);
+  await db.delete(expenses).where(and(eq(expenses.id, id), eq(expenses.storeId, user.storeId)));
 }
 
 export async function getNextSaleNumber(month: string, year: number): Promise<number> {
-  await requireAuth();
+  const user = await requireAuth();
   const last = await db
     .select({ number: sales.number })
     .from(sales)
-    .where(and(eq(sales.month, month), eq(sales.year, year)))
+    .where(and(eq(sales.storeId, user.storeId), eq(sales.month, month), eq(sales.year, year)))
     .orderBy(desc(sales.number))
     .limit(1);
 
