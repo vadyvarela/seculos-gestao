@@ -97,6 +97,11 @@ export function DashboardHeader({
     });
   };
 
+  const storeItems = stores.map((s) => ({
+    value: String(s.id),
+    label: s.name,
+  }));
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
@@ -127,15 +132,16 @@ export function DashboardHeader({
               value={String(storeId)}
               onValueChange={handleSwitch}
               disabled={pending}
+              items={storeItems}
             >
-              <SelectTrigger className="hidden sm:flex h-8 w-[min(100%,11rem)] text-xs">
+              <SelectTrigger className="hidden sm:flex h-8 min-w-[10rem] max-w-[14rem] text-xs">
                 <Store className="size-3.5 shrink-0 opacity-60" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {stores.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
+                {storeItems.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -212,14 +218,19 @@ export function DashboardHeader({
           {isOwner && stores.length > 0 && (
             <div className="mb-3 px-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Loja</p>
-              <Select value={String(storeId)} onValueChange={handleSwitch} disabled={pending}>
+              <Select
+                value={String(storeId)}
+                onValueChange={handleSwitch}
+                disabled={pending}
+                items={storeItems}
+              >
                 <SelectTrigger className="h-9 w-full text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {stores.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
+                  {storeItems.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
