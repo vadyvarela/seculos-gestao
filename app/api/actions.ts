@@ -248,6 +248,65 @@ export async function getAllStats() {
   };
 }
 
+export async function getDailyStats(date: string) {
+  const user = await requireStoreAdmin();
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error("Data inválida.");
+  }
+
+  const daySales = await db
+    .select()
+    .from(sales)
+    .where(and(eq(sales.storeId, user.storeId), eq(sales.saleDate, date)))
+    .orderBy(desc(sales.number));
+
+  const dayExpenses = await db
+    .select()
+    .from(expenses)
+    .where(and(eq(expenses.storeId, user.storeId), eq(expenses.date, date)))
+    .orderBy(desc(expenses.createdAt));
+
+  const totalSales = daySales.length;
+  const totalRevenue = daySales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+  const totalCost = daySales.reduce((sum, s) => sum + (Number(s.cost) || 0), 0);
+  const totalProfit = daySales.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
+  const totalQuantity = daySales.reduce((sum, s) => sum + (s.quantity ?? 1), 0);
+  const paidCount = daySales.filter((s) => s.paymentStatus === "pago").length;
+  const paidRevenue = daySales
+    .filter((s) => s.paymentStatus === "pago")
+    .reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+  const pendingPaymentValue = daySales
+    .filter((s) => s.paymentStatus === "pendente")
+    .reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+  const totalExpenses = dayExpenses.reduce((sum, e) => sum + (Number(e.value) || 0), 0);
+  const netProfit = totalProfit - totalExpenses;
+
+  const byMethod: Record<string, number> = {};
+  for (const s of daySales) {
+    if (s.paymentStatus !== "pago") continue;
+    const key = s.paymentMethod || "outros";
+    byMethod[key] = (byMethod[key] || 0) + (Number(s.total) || 0);
+  }
+
+  return {
+    date,
+    totalSales,
+    totalQuantity,
+    totalRevenue,
+    totalCost,
+    totalProfit,
+    totalExpenses,
+    netProfit,
+    paidCount,
+    pendingCount: totalSales - paidCount,
+    paidRevenue,
+    pendingPaymentValue,
+    byMethod,
+    sales: daySales,
+    expenses: dayExpenses,
+  };
+}
+
 export async function getExpenses(): Promise<Expense[]> {
   const user = await requireStoreAdmin();
   return db
