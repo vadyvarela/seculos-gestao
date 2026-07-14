@@ -166,7 +166,7 @@ export function SalesTable({
               <TableCell className="sticky right-0 bg-card shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.2)]" onClick={(e) => e.stopPropagation()}>
                 <TooltipProvider delay={200}>
                   <div className="flex gap-0.5">
-                    {onApplyCost && isAdmin && (
+                    {onApplyCost && isAdmin && !(Number(sale.unitCost) > 0 || Number(sale.cost) > 0) && (
                       <Tooltip>
                         <TooltipTrigger render={
                           <Button variant="ghost" size="icon-xs" onClick={() => onApplyCost(sale)} aria-label="Aplicar custo"

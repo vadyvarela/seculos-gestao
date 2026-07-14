@@ -40,8 +40,8 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
   const [formData, setFormData] = useState({
     productService: sale?.productService ?? "",
     quantity: sale?.quantity ?? 1,
-    unitPrice: sale?.unitPrice ?? 0,
-    unitCost: sale?.unitCost ?? 0,
+    unitPrice: sale ? sale.unitPrice : ("" as number | ""),
+    unitCost: sale && sale.unitCost > 0 ? sale.unitCost : ("" as number | ""),
     clientName: sale?.clientName ?? "",
     clientPhone: sale?.clientPhone ?? "",
     saleDate: sale?.saleDate ?? new Date().toISOString().split("T")[0],
@@ -50,9 +50,12 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
     notes: sale?.notes ?? "",
   });
 
+  const priceNum = Number(formData.unitPrice) || 0;
+  const costNum = Number(formData.unitCost) || 0;
+
   const amounts = useMemo(
-    () => computeSaleAmounts(formData.quantity, formData.unitPrice, formData.unitCost),
-    [formData.quantity, formData.unitPrice, formData.unitCost]
+    () => computeSaleAmounts(Number(formData.quantity) || 1, priceNum, costNum),
+    [formData.quantity, priceNum, costNum]
   );
 
   const set = (field: string, value: string | number) =>
@@ -60,8 +63,15 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const numeric = name === "quantity" || name === "unitPrice" || name === "unitCost";
-    set(name, numeric ? (value ? parseFloat(value) : 0) : value);
+    if (name === "unitPrice" || name === "unitCost") {
+      set(name, value === "" ? "" : parseFloat(value));
+      return;
+    }
+    if (name === "quantity") {
+      set(name, value === "" ? "" : parseFloat(value));
+      return;
+    }
+    set(name, value);
   };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -71,8 +81,15 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
       await onSubmit({
         ...formData,
         quantity: Number(formData.quantity) || 1,
-        unitPrice: Number(formData.unitPrice) || 0,
-        unitCost: Number(formData.unitCost) || 0,
+        unitPrice: priceNum,
+        unitCost: isAdmin ? costNum : 0,
+        clientName: formData.clientName,
+        clientPhone: formData.clientPhone,
+        saleDate: formData.saleDate,
+        paymentStatus: formData.paymentStatus,
+        paymentMethod: formData.paymentMethod,
+        notes: formData.notes,
+        productService: formData.productService,
       });
     } finally {
       setLoading(false);
@@ -95,7 +112,7 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={isAdmin ? "grid grid-cols-3 gap-3" : "grid grid-cols-2 gap-3"}>
             <div className="space-y-1.5">
               <Label htmlFor="quantity">Qtd *</Label>
               <Input
@@ -119,9 +136,24 @@ export function SaleForm({ sale, onSubmit, onCancel, isAdmin = false }: SaleForm
                 step="0.01"
                 min="0"
                 required
-                placeholder="0"
+                placeholder="—"
               />
             </div>
+            {isAdmin && (
+              <div className="space-y-1.5">
+                <Label htmlFor="unitCost">Custo</Label>
+                <Input
+                  id="unitCost"
+                  name="unitCost"
+                  type="number"
+                  value={formData.unitCost}
+                  onChange={handleChange}
+                  step="0.01"
+                  min="0"
+                  placeholder="—"
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-md border border-border bg-muted/40 px-4 py-3 space-y-2.5 text-sm">
