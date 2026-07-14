@@ -393,18 +393,16 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className={`grid grid-cols-2 gap-3 ${isAdmin ? "sm:grid-cols-3 xl:grid-cols-6" : "sm:grid-cols-2 xl:grid-cols-4"}`}>
-        <StatCard label="Vendas" value={stats?.totalSales ?? 0} color="blue" />
-        <StatCard label="Unidades" value={stats?.totalQuantity ?? 0} color="orange" />
-        <StatCard label="Faturamento" value={formatCurrency(stats?.totalRevenue ?? 0)} color="green" />
-        {isAdmin && (
-          <>
-            <StatCard label="Custo" value={formatCurrency(stats?.totalCost ?? 0)} color="yellow" />
-            <StatCard label="Lucro" value={formatCurrency(stats?.totalProfit ?? 0)} color="purple" />
-          </>
-        )}
-        <StatCard label="Pagto. pendente" value={formatCurrency(stats?.pendingPaymentValue ?? 0)} color="red" />
-      </div>
+      {isAdmin && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <StatCard label="Vendas" value={stats?.totalSales ?? 0} color="blue" />
+          <StatCard label="Unidades" value={stats?.totalQuantity ?? 0} color="orange" />
+          <StatCard label="Faturamento" value={formatCurrency(stats?.totalRevenue ?? 0)} color="green" />
+          <StatCard label="Custo" value={formatCurrency(stats?.totalCost ?? 0)} color="yellow" />
+          <StatCard label="Lucro" value={formatCurrency(stats?.totalProfit ?? 0)} color="purple" />
+          <StatCard label="Pagto. pendente" value={formatCurrency(stats?.pendingPaymentValue ?? 0)} color="red" />
+        </div>
+      )}
 
       <Sheet open={showForm} onOpenChange={(open) => !open && setShowForm(false)}>
         <SheetContent title="Nova Venda">

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { decrypt } from "@/lib/session";
 
 const publicRoutes = ["/login"];
-const adminRoutes = ["/estatisticas", "/despesas", "/utilizadores"];
+const adminRoutes = ["/estatisticas", "/utilizadores"];
 const ownerRoutes = ["/lojas"];
 
 function isStoreAdminSession(session: {

@@ -77,7 +77,7 @@ export function DashboardHeader({
 
   const navItems = [
     { href: "/", label: "Vendas" },
-    ...(isStoreAdmin ? [{ href: "/despesas", label: "Despesas" }] : []),
+    { href: "/despesas", label: "Despesas" },
     ...(isStoreAdmin ? [{ href: "/utilizadores", label: "Utilizadores" }] : []),
     ...(isOwner ? [{ href: "/lojas", label: "Lojas" }] : []),
   ];

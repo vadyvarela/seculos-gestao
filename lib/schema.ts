@@ -27,6 +27,7 @@ export type StoreMember = typeof storeMembers.$inferSelect;
 export const sales = sqliteTable("sales", {
   id: integer().primaryKey({ autoIncrement: true }),
   storeId: integer("store_id").notNull(),
+  createdBy: integer("created_by"),
   number: integer().notNull(),
   productService: text().notNull(),
   quantity: integer().notNull().default(1),

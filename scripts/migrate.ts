@@ -103,6 +103,9 @@ async function main() {
   if (!(await columnExists("sales", "store_id"))) {
     await client.execute(`ALTER TABLE sales ADD COLUMN store_id INTEGER`);
   }
+  if (!(await columnExists("sales", "created_by"))) {
+    await client.execute(`ALTER TABLE sales ADD COLUMN created_by INTEGER`);
+  }
   if (!(await columnExists("expenses", "store_id"))) {
     await client.execute(`ALTER TABLE expenses ADD COLUMN store_id INTEGER`);
   }

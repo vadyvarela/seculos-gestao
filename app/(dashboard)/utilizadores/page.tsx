@@ -153,7 +153,7 @@ export default function UtilizadoresPage() {
           <DialogHeader>
             <DialogTitle>Novo utilizador</DialogTitle>
             <DialogDescription>
-              O admin desta loja gere custos e despesas; o utilizador normal só regista vendas.
+              O admin da loja gere custos e utilizadores; o utilizador normal regista vendas e despesas.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
